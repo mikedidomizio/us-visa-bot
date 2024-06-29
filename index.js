@@ -2,6 +2,7 @@
 
 import fetch from "node-fetch";
 import cheerio from 'cheerio';
+import player from 'play-sound'
 
 const EMAIL = process.env.EMAIL
 const PASSWORD = process.env.PASSWORD
@@ -12,30 +13,44 @@ const REFRESH_DELAY = Number(process.env.REFRESH_DELAY || 3)
 
 const BASE_URI = `https://ais.usvisa-info.com/${LOCALE}/niv`
 
-async function main(currentBookedDate) {
-  if (!currentBookedDate) {
-    log(`Invalid current booked date: ${currentBookedDate}`)
+async function main(startDate, endDate) {
+  if (!startDate || !endDate) {
+    log(`Invalid dates: ${startDate} - ${endDate}`)
     process.exit(1)
   }
 
-  log(`Initializing with current date ${currentBookedDate}`)
+  log(`Initializing with current date ${startDate}-${endDate}`)
 
   try {
     const sessionHeaders = await login()
 
     while(true) {
-      const date = await checkAvailableDate(sessionHeaders)
+      const dates = await checkAvailableDates(sessionHeaders)
+      console.log(dates)
 
-      if (!date) {
+      if (!dates) {
         log("no dates available")
-      } else if (date > currentBookedDate) {
-        log(`nearest date is further than already booked (${currentBookedDate} vs ${date})`)
       } else {
-        currentBookedDate = date
-        const time = await checkAvailableTime(sessionHeaders, date)
+        let foundDate = false
 
-        book(sessionHeaders, date, time)
-          .then(d => log(`booked time at ${date} ${time}`))
+        const startD = new Date(startDate).getTime()
+        const endD = new Date(endDate).getTime()
+
+        for (let date of dates) {
+          const unixTimeOfDate = new Date(date.date).getTime()
+
+          if (unixTimeOfDate >= startD && unixTimeOfDate <= endD) {
+            foundDate = true
+          }
+        }
+
+        if (foundDate) {
+          player().play('beep-01a.mp3', function(err){
+            if (err) throw err
+          })
+        } else {
+          console.log('did not find date in', JSON.stringify(dates))
+        }
       }
 
       await sleep(REFRESH_DELAY)
@@ -45,7 +60,7 @@ async function main(currentBookedDate) {
     console.error(err)
     log("Trying again")
 
-    main(currentBookedDate)
+    main(startDate, endDate)
   }
 }
 
@@ -82,7 +97,7 @@ async function login() {
     ))
 }
 
-function checkAvailableDate(headers) {
+function checkAvailableDates(headers) {
   return fetch(`${BASE_URI}/schedule/${SCHEDULE_ID}/appointment/days/${FACILITY_ID}.json?appointments[expedite]=false`, {
     "headers": Object.assign({}, headers, {
       "Accept": "application/json",
@@ -92,21 +107,8 @@ function checkAvailableDate(headers) {
   })
     .then(r => r.json())
     .then(r => handleErrors(r))
-    .then(d => d.length > 0 ? d[0]['date'] : null)
+    .then(d => d.length > 0 ? d : null)
 
-}
-
-function checkAvailableTime(headers, date) {
-  return fetch(`${BASE_URI}/schedule/${SCHEDULE_ID}/appointment/times/${FACILITY_ID}.json?date=${date}&appointments[expedite]=false`, {
-    "headers": Object.assign({}, headers, {
-      "Accept": "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    }),
-    "cache": "no-store",
-  })
-    .then(r => r.json())
-    .then(r => handleErrors(r))
-    .then(d => d['business_times'][0] || d['available_times'][0])
 }
 
 function handleErrors(response) {
@@ -117,33 +119,6 @@ function handleErrors(response) {
   }
 
   return response
-}
-
-async function book(headers, date, time) {
-  const url = `${BASE_URI}/schedule/${SCHEDULE_ID}/appointment`
-
-  const newHeaders = await fetch(url, { "headers": headers })
-    .then(response => extractHeaders(response))
-
-  return fetch(url, {
-    "method": "POST",
-    "redirect": "follow",
-    "headers": Object.assign({}, newHeaders, {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    }),
-    "body": new URLSearchParams({
-      'utf8': '✓',
-      'authenticity_token': newHeaders['X-CSRF-Token'],
-      'confirmed_limit_message': '1',
-      'use_consulate_appointment_capacity': 'true',
-      'appointments[consulate_appointment][facility_id]': FACILITY_ID,
-      'appointments[consulate_appointment][date]': date,
-      'appointments[consulate_appointment][time]': time,
-      'appointments[asc_appointment][facility_id]': '',
-      'appointments[asc_appointment][date]': '',
-      'appointments[asc_appointment][time]': ''
-    }),
-  })
 }
 
 async function extractHeaders(res) {
@@ -190,6 +165,5 @@ function log(message) {
   console.log(`[${new Date().toISOString()}]`, message)
 }
 
-const args = process.argv.slice(2);
-const currentBookedDate = args[0]
-main(currentBookedDate)
+const {argv} = process
+main(argv[2], argv[3])
