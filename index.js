@@ -3,7 +3,6 @@
 import fetch from "node-fetch";
 import cheerio from 'cheerio';
 
-import player from 'play-sound'
 const EMAIL = process.env.EMAIL
 const PASSWORD = process.env.PASSWORD
 const SCHEDULE_ID = process.env.SCHEDULE_ID
@@ -17,12 +16,14 @@ async function main(currentBookedDate) {
   if (!currentBookedDate) {
     log(`Invalid current booked date: ${currentBookedDate}`)
     process.exit(1)
+    return
   }
 
   log(`Initializing with current date ${currentBookedDate}`)
 
   try {
     const sessionHeaders = await login()
+    console.log({sessionHeaders})
 
     while(true) {
       // todo changes the return value of this, need to mock the API so I can continue development
@@ -46,15 +47,7 @@ async function main(currentBookedDate) {
 
         const unixTime = d.getTime()
 
-        console.log(d)
-
-        // player().play('beep-01a.mp3', function(err){
-        //   if (err) throw err
-        // })
-
-        console.log(date)
-
-        return
+        return // todo for testing
       }
 
       await sleep(REFRESH_DELAY)
@@ -81,15 +74,24 @@ function isDateInRange(date, startDate, endDate) {
 async function login() {
   log(`Logging in`)
 
-  const anonymousHeaders = await fetch(`${BASE_URI}/users/sign_in`, {
-    headers: {
-      "User-Agent": "",
-      "Accept": "*/*",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Connection": "keep-alive",
-    },
-  })
-    .then(response => extractHeaders(response))
+  console.log('attempt fetch')
+  const anonymousHeaders = await fetch('http://example.com?id=1')
+  console.log('attempt another fetch 2')
+  const t = await fetch('http://example.com?id=2')
+  console.log('attempt another fetch 3')
+  const u = await fetch('http://example.com?id=3')
+  console.log('after another another fetch - we\'re done')
+  console.log('past', await t.status)
+
+  // const anonymousHeaders = await fetch(`${BASE_URI}/users/sign_in`, {
+  //   headers: {
+  //     "User-Agent": "",
+  //     "Accept": "*/*",
+  //     "Accept-Encoding": "gzip, deflate, br",
+  //     "Connection": "keep-alive",
+  //   },
+  // })
+  //   .then(response => extractHeaders(response))
 
   return fetch(`${BASE_URI}/users/sign_in`, {
     "headers": Object.assign({}, anonymousHeaders, {
@@ -235,5 +237,6 @@ function log(message) {
 }
 
 const args = process.argv.slice(2);
+
 const currentBookedDate = args[0]
 main(currentBookedDate)

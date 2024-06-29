@@ -11,11 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
-    "node-fetch": "^3.3.0",
-    "play-sound": "^1.1.6"
+    "node-fetch": "^3.3.0"
   },
   "devDependencies": {
-    "vitest": "^1.6.0",
-    "vitest-mock-process": "^1.0.4"
+    "msw": "^2.3.1",
+    "vitest": "^1.6.0"
   }
 }
