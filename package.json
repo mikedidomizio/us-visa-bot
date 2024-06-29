@@ -5,12 +5,17 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
-    "node-fetch": "^3.3.0"
+    "node-fetch": "^3.3.0",
+    "play-sound": "^1.1.6"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "vitest-mock-process": "^1.0.4"
   }
 }

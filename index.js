@@ -3,6 +3,7 @@
 import fetch from "node-fetch";
 import cheerio from 'cheerio';
 
+import player from 'play-sound'
 const EMAIL = process.env.EMAIL
 const PASSWORD = process.env.PASSWORD
 const SCHEDULE_ID = process.env.SCHEDULE_ID
@@ -24,7 +25,12 @@ async function main(currentBookedDate) {
     const sessionHeaders = await login()
 
     while(true) {
+      // todo changes the return value of this, need to mock the API so I can continue development
       const date = await checkAvailableDate(sessionHeaders)
+
+      console.log(date[0].business_day)
+
+      return
 
       if (!date) {
         log("no dates available")
@@ -34,8 +40,21 @@ async function main(currentBookedDate) {
         currentBookedDate = date
         const time = await checkAvailableTime(sessionHeaders, date)
 
-        book(sessionHeaders, date, time)
-          .then(d => log(`booked time at ${date} ${time}`))
+        console.log(date, time)
+
+        const d = new Date(date)
+
+        const unixTime = d.getTime()
+
+        console.log(d)
+
+        // player().play('beep-01a.mp3', function(err){
+        //   if (err) throw err
+        // })
+
+        console.log(date)
+
+        return
       }
 
       await sleep(REFRESH_DELAY)
@@ -47,6 +66,16 @@ async function main(currentBookedDate) {
 
     main(currentBookedDate)
   }
+}
+
+function isDateInRange(date, startDate, endDate) {
+  // Convert the dates to milliseconds since the epoch
+  const dateMs = date.getTime();
+  const startDateMs = startDate.getTime();
+  const endDateMs = endDate.getTime();
+
+  // Check if the date is in range
+  return dateMs >= startDateMs && dateMs <= endDateMs;
 }
 
 async function login() {
@@ -82,6 +111,17 @@ async function login() {
     ))
 }
 
+/**
+ * @param {Object} availableDate
+ * @param {number} availableDate.date string
+ * @param {string} availableDate.business_day boolean
+ */
+
+/**
+ * Returns an array of available dates
+ * @param headers
+ * @return {PromiseLike<availableDate[] | null>}
+ */
 function checkAvailableDate(headers) {
   return fetch(`${BASE_URI}/schedule/${SCHEDULE_ID}/appointment/days/${FACILITY_ID}.json?appointments[expedite]=false`, {
     "headers": Object.assign({}, headers, {
@@ -92,7 +132,7 @@ function checkAvailableDate(headers) {
   })
     .then(r => r.json())
     .then(r => handleErrors(r))
-    .then(d => d.length > 0 ? d[0]['date'] : null)
+    .then(d => d.length > 0 ? d : null)
 
 }
 
@@ -170,14 +210,18 @@ function extractRelevantCookies(res) {
 }
 
 function parseCookies(cookies) {
-  const parsedCookies = {}
+  if (cookies) {
+    const parsedCookies = {}
 
-  cookies.split(';').map(c => c.trim()).forEach(c => {
-    const [name, value] = c.split('=', 2)
-    parsedCookies[name] = value
-  })
+    cookies.split(';').map(c => c.trim()).forEach(c => {
+      const [name, value] = c.split('=', 2)
+      parsedCookies[name] = value
+    })
 
-  return parsedCookies
+    return parsedCookies
+  }
+
+  throw new Error('No cookies in response header')
 }
 
 function sleep(s) {
