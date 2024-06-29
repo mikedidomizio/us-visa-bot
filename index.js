@@ -23,15 +23,9 @@ async function main(currentBookedDate) {
 
   try {
     const sessionHeaders = await login()
-    console.log({sessionHeaders})
 
     while(true) {
-      // todo changes the return value of this, need to mock the API so I can continue development
       const date = await checkAvailableDate(sessionHeaders)
-
-      console.log(date[0].business_day)
-
-      return
 
       if (!date) {
         log("no dates available")
@@ -41,13 +35,8 @@ async function main(currentBookedDate) {
         currentBookedDate = date
         const time = await checkAvailableTime(sessionHeaders, date)
 
-        console.log(date, time)
-
-        const d = new Date(date)
-
-        const unixTime = d.getTime()
-
-        return // todo for testing
+        book(sessionHeaders, date, time)
+            .then(d => log(`booked time at ${date} ${time}`))
       }
 
       await sleep(REFRESH_DELAY)
@@ -74,24 +63,15 @@ function isDateInRange(date, startDate, endDate) {
 async function login() {
   log(`Logging in`)
 
-  console.log('attempt fetch')
-  const anonymousHeaders = await fetch('http://example.com?id=1')
-  console.log('attempt another fetch 2')
-  const t = await fetch('http://example.com?id=2')
-  console.log('attempt another fetch 3')
-  const u = await fetch('http://example.com?id=3')
-  console.log('after another another fetch - we\'re done')
-  console.log('past', await t.status)
-
-  // const anonymousHeaders = await fetch(`${BASE_URI}/users/sign_in`, {
-  //   headers: {
-  //     "User-Agent": "",
-  //     "Accept": "*/*",
-  //     "Accept-Encoding": "gzip, deflate, br",
-  //     "Connection": "keep-alive",
-  //   },
-  // })
-  //   .then(response => extractHeaders(response))
+  const anonymousHeaders = await fetch(`${BASE_URI}/users/sign_in`, {
+    headers: {
+      "User-Agent": "",
+      "Accept": "*/*",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Connection": "keep-alive",
+    },
+  })
+    .then(response => extractHeaders(response))
 
   return fetch(`${BASE_URI}/users/sign_in`, {
     "headers": Object.assign({}, anonymousHeaders, {
@@ -113,17 +93,6 @@ async function login() {
     ))
 }
 
-/**
- * @param {Object} availableDate
- * @param {number} availableDate.date string
- * @param {string} availableDate.business_day boolean
- */
-
-/**
- * Returns an array of available dates
- * @param headers
- * @return {PromiseLike<availableDate[] | null>}
- */
 function checkAvailableDate(headers) {
   return fetch(`${BASE_URI}/schedule/${SCHEDULE_ID}/appointment/days/${FACILITY_ID}.json?appointments[expedite]=false`, {
     "headers": Object.assign({}, headers, {
@@ -134,8 +103,7 @@ function checkAvailableDate(headers) {
   })
     .then(r => r.json())
     .then(r => handleErrors(r))
-    .then(d => d.length > 0 ? d : null)
-
+    .then(d => d.length > 0 ? d[0]['date'] : null)
 }
 
 function checkAvailableTime(headers, date) {
@@ -239,4 +207,4 @@ function log(message) {
 const args = process.argv.slice(2);
 
 const currentBookedDate = args[0]
-main(currentBookedDate)
+await main(currentBookedDate)
