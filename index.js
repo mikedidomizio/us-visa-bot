@@ -49,7 +49,7 @@ async function main(startDate, endDate) {
             if (err) throw err
           })
         } else {
-          console.log('did not find date in', JSON.stringify(dates))
+          log('did not find date in', JSON.stringify(dates))
         }
       }
 
